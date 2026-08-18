@@ -1,4 +1,5 @@
 import "dotenv/config";
+import http from "node:http";
 
 import {
   disconnectDatabase,
@@ -82,6 +83,23 @@ const bot = createBot(environment.TELEGRAM_BOT_TOKEN, {
   logger,
 });
 
+const port = Number(process.env.PORT ?? 3000);
+
+const server = http.createServer((req, res) => {
+  if (req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
+  }
+
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("Telegram referral bot is running");
+});
+
+server.listen(port, "0.0.0.0", () => {
+  logger.info({ port }, "Health server started");
+});
+
 await bot.launch({
   allowedUpdates: ["message", "callback_query", "chat_member"],
 });
@@ -89,7 +107,11 @@ logger.info({ mode: "long-polling" }, "Telegram bot started");
 
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, "Stopping Telegram bot");
+
   bot.stop(signal);
+
+  server.close();
+
   await disconnectDatabase();
 }
 

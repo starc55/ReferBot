@@ -122,17 +122,6 @@ export const serverEnvSchema = z
         message: "CHALLENGE_END_DATE must be after CHALLENGE_START_DATE",
       });
     }
-
-    if (
-      environment.NODE_ENV === "production" &&
-      !environment.TELEGRAM_WEBHOOK_URL
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["TELEGRAM_WEBHOOK_URL"],
-        message: "TELEGRAM_WEBHOOK_URL is required in production",
-      });
-    }
   });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
