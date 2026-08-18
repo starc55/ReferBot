@@ -24,20 +24,20 @@ export function getPrismaClient(): PrismaClient {
 
   const certificatePath = process.env.DATABASE_SSL_CA_PATH;
   const runtimeConnectionUrl = new URL(connectionString);
-  if (certificatePath) {
-    runtimeConnectionUrl.searchParams.delete("sslmode");
-    runtimeConnectionUrl.searchParams.delete("sslrootcert");
-  }
+  
+  runtimeConnectionUrl.searchParams.delete("sslmode");
+  runtimeConnectionUrl.searchParams.delete("sslrootcert");
+  
   const adapter = new PrismaPg({
     connectionString: runtimeConnectionUrl.toString(),
-    ...(certificatePath
+    ssl: certificatePath
       ? {
-          ssl: {
-            ca: readFileSync(resolve(process.cwd(), certificatePath), "utf8"),
-            rejectUnauthorized: true,
-          },
+          ca: readFileSync(resolve(process.cwd(), certificatePath), "utf8"),
+          rejectUnauthorized: true,
         }
-      : {}),
+      : {
+          rejectUnauthorized: false,
+        },
   });
   const client = new PrismaClient({ adapter });
 
