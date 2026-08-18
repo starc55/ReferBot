@@ -1,0 +1,350 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../packages/database/src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ReferralStatus {
+  PENDING
+  CONFIRMED
+  INVALIDATED
+  REJECTED
+  FRAUD
+}
+
+enum RewardStatus {
+  ELIGIBLE
+  PENDING
+  APPROVED
+  DELIVERED
+  REJECTED
+}
+
+enum FraudType {
+  HIGH_REFERRAL_VELOCITY
+  SELF_REFERRAL
+  DUPLICATE_REFERRAL
+  SUBSCRIBE_UNSUBSCRIBE_ABUSE
+  REJOIN_ABUSE
+  SUSPICIOUS_ACTIVITY
+  MANUAL
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum SubscriptionEventType {
+  INITIAL_CHECK
+  JOINED
+  LEFT
+  KICKED
+  RESTRICTED
+  REJOINED
+  RECONCILIATION
+}
+
+enum AuditEventType {
+  USER_STARTED
+  CAPTCHA_VERIFIED
+  CHANNEL_VERIFIED
+  REFERRAL_CREATED
+  REFERRAL_CONFIRMED
+  REFERRAL_INVALIDATED
+  REFERRAL_RESTORED
+  REWARD_ELIGIBLE
+  REWARD_APPROVED
+  REWARD_REJECTED
+  REWARD_DELIVERED
+  FRAUD_FLAG_CREATED
+  FRAUD_FLAG_RESOLVED
+  ADMIN_BLOCKED_USER
+  ADMIN_UNBLOCKED_USER
+  ADMIN_MARKED_SUSPICIOUS
+  ADMIN_CLEARED_SUSPICIOUS
+  ADMIN_RECHECKED_MEMBERSHIP
+  CHALLENGE_CREATED
+  CHALLENGE_UPDATED
+  CHALLENGE_ACTIVATED
+  CHALLENGE_DEACTIVATED
+  SETTING_UPDATED
+  TELEGRAM_UPDATE_FAILED
+}
+
+enum AuditActorType {
+  SYSTEM
+  TELEGRAM_USER
+  ADMIN
+}
+
+enum TelegramUpdateStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum AdminRole {
+  ADMIN
+  OWNER
+}
+
+model User {
+  id                    String    @id @default(uuid()) @db.Uuid
+  telegramId            BigInt    @unique @map("telegram_id")
+  referralCode          String    @unique @map("referral_code") @db.VarChar(32)
+  username              String?   @db.VarChar(32)
+  firstName             String    @map("first_name") @db.VarChar(128)
+  lastName              String?   @map("last_name") @db.VarChar(128)
+  languageCode          String?   @map("language_code") @db.VarChar(16)
+  captchaVerified       Boolean   @default(false) @map("captcha_verified")
+  isSubscribed          Boolean   @default(false) @map("is_subscribed")
+  subscriptionCheckedAt DateTime? @map("subscription_checked_at") @db.Timestamptz(3)
+  isBlocked             Boolean   @default(false) @map("is_blocked")
+  isSuspicious          Boolean   @default(false) @map("is_suspicious")
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastActivityAt        DateTime  @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+
+  referralsGiven     Referral[]          @relation("ReferralReferrer")
+  referralReceived   Referral?           @relation("ReferralReferredUser")
+  rewards            Reward[]
+  fraudFlags         FraudFlag[]
+  subscriptionEvents SubscriptionEvent[]
+  captchaSessions    CaptchaSession[]
+  auditActions       AuditLog[]          @relation("AuditActorUser")
+  auditSubjects      AuditLog[]          @relation("AuditSubjectUser")
+
+  @@index([createdAt])
+  @@index([isSuspicious])
+  @@index([isSubscribed])
+  @@index([isBlocked])
+  @@map("users")
+}
+
+model Challenge {
+  id                          String   @id @default(uuid()) @db.Uuid
+  name                        String   @db.VarChar(160)
+  description                 String
+  referralTarget              Int      @map("referral_target")
+  startDate                   DateTime @map("start_date") @db.Timestamptz(3)
+  endDate                     DateTime @map("end_date") @db.Timestamptz(3)
+  isActive                    Boolean  @default(false) @map("is_active")
+  rewardDescription           String   @map("reward_description")
+  rulesText                   String   @map("rules_text")
+  subscriptionChannelId       BigInt   @map("subscription_channel_id")
+  subscriptionChannelUsername String?  @map("subscription_channel_username") @db.VarChar(64)
+  rewardChannelId             BigInt?  @map("reward_channel_id")
+  rewardChannelUsername       String?  @map("reward_channel_username") @db.VarChar(64)
+  createdAt                   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  referrals Referral[]
+  rewards   Reward[]
+
+  @@index([isActive, startDate, endDate])
+  @@index([createdAt])
+  @@map("challenges")
+}
+
+model Referral {
+  id              String         @id @default(uuid()) @db.Uuid
+  referrerId      String         @map("referrer_id") @db.Uuid
+  referredUserId  String         @unique @map("referred_user_id") @db.Uuid
+  challengeId     String         @map("challenge_id") @db.Uuid
+  status          ReferralStatus @default(PENDING)
+  joinedChannelAt DateTime?      @map("joined_channel_at") @db.Timestamptz(3)
+  leftChannelAt   DateTime?      @map("left_channel_at") @db.Timestamptz(3)
+  confirmedAt     DateTime?      @map("confirmed_at") @db.Timestamptz(3)
+  invalidatedAt   DateTime?      @map("invalidated_at") @db.Timestamptz(3)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  referrer     User        @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: Restrict)
+  referredUser User        @relation("ReferralReferredUser", fields: [referredUserId], references: [id], onDelete: Restrict)
+  challenge    Challenge   @relation(fields: [challengeId], references: [id], onDelete: Restrict)
+  fraudFlags   FraudFlag[]
+
+  @@index([referrerId])
+  @@index([status])
+  @@index([challengeId])
+  @@index([createdAt])
+  @@index([referrerId, challengeId, status])
+  @@index([challengeId, status, referrerId, confirmedAt])
+  @@map("referrals")
+}
+
+model Reward {
+  id                String       @id @default(uuid()) @db.Uuid
+  challengeId       String       @map("challenge_id") @db.Uuid
+  userId            String       @map("user_id") @db.Uuid
+  status            RewardStatus @default(ELIGIBLE)
+  qualifiedAt       DateTime     @default(now()) @map("qualified_at") @db.Timestamptz(3)
+  approvedAt        DateTime?    @map("approved_at") @db.Timestamptz(3)
+  deliveredAt       DateTime?    @map("delivered_at") @db.Timestamptz(3)
+  adminNote         String?      @map("admin_note")
+  deliveryReference String?      @map("delivery_reference") @db.VarChar(255)
+  reviewedById      String?      @map("reviewed_by_id") @db.Uuid
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  challenge  Challenge     @relation(fields: [challengeId], references: [id], onDelete: Restrict)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  reviewedBy AdminProfile? @relation("RewardReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([challengeId, userId])
+  @@index([userId])
+  @@index([challengeId])
+  @@index([status])
+  @@index([qualifiedAt])
+  @@index([reviewedById])
+  @@map("rewards")
+}
+
+model FraudFlag {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String?       @map("user_id") @db.Uuid
+  referralId   String?       @map("referral_id") @db.Uuid
+  type         FraudType
+  severity     FraudSeverity
+  description  String
+  metadata     Json?
+  resolved     Boolean       @default(false)
+  resolvedById String?       @map("resolved_by_id") @db.Uuid
+  resolvedAt   DateTime?     @map("resolved_at") @db.Timestamptz(3)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user       User?         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  referral   Referral?     @relation(fields: [referralId], references: [id], onDelete: Restrict)
+  resolvedBy AdminProfile? @relation("FraudResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([referralId])
+  @@index([resolved])
+  @@index([createdAt])
+  @@index([severity, resolved, createdAt])
+  @@index([resolvedById])
+  @@map("fraud_flags")
+}
+
+model SubscriptionEvent {
+  id               String                @id @default(uuid()) @db.Uuid
+  userId           String                @map("user_id") @db.Uuid
+  channelId        BigInt                @map("channel_id")
+  oldStatus        String?               @map("old_status") @db.VarChar(32)
+  newStatus        String                @map("new_status") @db.VarChar(32)
+  eventType        SubscriptionEventType @map("event_type")
+  telegramUpdateId BigInt?               @unique @map("telegram_update_id")
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  telegramUpdate TelegramUpdate? @relation(fields: [telegramUpdateId], references: [updateId], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([channelId, createdAt])
+  @@map("subscription_events")
+}
+
+model CaptchaSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  nonceHash String    @unique @map("nonce_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+  @@map("captcha_sessions")
+}
+
+model TelegramUpdate {
+  updateId    BigInt               @id @map("update_id")
+  updateType  String               @map("update_type") @db.VarChar(64)
+  status      TelegramUpdateStatus @default(RECEIVED)
+  attempts    Int                  @default(0)
+  receivedAt  DateTime             @default(now()) @map("received_at") @db.Timestamptz(3)
+  processedAt DateTime?            @map("processed_at") @db.Timestamptz(3)
+  lastError   String?              @map("last_error")
+
+  subscriptionEvent SubscriptionEvent?
+  auditLogs         AuditLog[]
+
+  @@index([status, receivedAt])
+  @@index([receivedAt])
+  @@map("telegram_updates")
+}
+
+model AdminProfile {
+  id        String    @id @db.Uuid
+  email     String    @unique @db.VarChar(320)
+  role      AdminRole @default(ADMIN)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  resolvedFraudFlags FraudFlag[]     @relation("FraudResolver")
+  reviewedRewards    Reward[]        @relation("RewardReviewer")
+  auditLogs          AuditLog[]      @relation("AuditActorAdmin")
+  updatedSettings    SystemSetting[] @relation("SettingUpdater")
+
+  @@index([isActive])
+  @@map("admin_profiles")
+}
+
+model AuditLog {
+  id               String         @id @default(uuid()) @db.Uuid
+  eventType        AuditEventType @map("event_type")
+  actorType        AuditActorType @map("actor_type")
+  actorUserId      String?        @map("actor_user_id") @db.Uuid
+  actorAdminId     String?        @map("actor_admin_id") @db.Uuid
+  subjectUserId    String?        @map("subject_user_id") @db.Uuid
+  telegramUpdateId BigInt?        @map("telegram_update_id")
+  entityType       String?        @map("entity_type") @db.VarChar(64)
+  entityId         String?        @map("entity_id") @db.VarChar(128)
+  description      String?
+  metadata         Json?
+  ipAddress        String?        @map("ip_address") @db.Inet
+  userAgent        String?        @map("user_agent") @db.VarChar(512)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actorUser      User?           @relation("AuditActorUser", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorAdmin     AdminProfile?   @relation("AuditActorAdmin", fields: [actorAdminId], references: [id], onDelete: SetNull)
+  subjectUser    User?           @relation("AuditSubjectUser", fields: [subjectUserId], references: [id], onDelete: SetNull)
+  telegramUpdate TelegramUpdate? @relation(fields: [telegramUpdateId], references: [updateId], onDelete: SetNull)
+
+  @@unique([telegramUpdateId, eventType])
+  @@index([eventType, createdAt])
+  @@index([actorUserId])
+  @@index([actorAdminId])
+  @@index([subjectUserId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  key         String   @id @db.VarChar(128)
+  value       Json
+  description String?
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  updatedBy AdminProfile? @relation("SettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedById])
+  @@map("system_settings")
+}

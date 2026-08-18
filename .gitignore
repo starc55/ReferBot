@@ -1,0 +1,23 @@
+node_modules/
+dist/
+coverage/
+*.log
+*.tsbuildinfo
+
+# Environment files contain credentials.
+.env
+.env.*
+!.env.example
+
+# Generated Prisma Client (recreated by npm run prisma:generate).
+packages/database/src/generated/
+
+# Editors and operating systems.
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Build/deployment tooling.
+.vercel/
+.turbo/

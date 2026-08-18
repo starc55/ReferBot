@@ -1,0 +1,16 @@
+{
+  "name": "@telegram-referral/bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@telegram-referral/database": "0.1.0",
+    "@telegram-referral/shared": "0.1.0",
+    "telegraf": "4.16.3"
+  }
+}
