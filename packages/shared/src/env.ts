@@ -111,6 +111,13 @@ export const serverEnvSchema = z
       .default(30),
   })
   .superRefine((environment, context) => {
+    if (environment.NODE_ENV === "production" && !environment.TELEGRAM_WEBHOOK_URL) {
+      context.addIssue({
+        code: "custom",
+        path: ["TELEGRAM_WEBHOOK_URL"],
+        message: "TELEGRAM_WEBHOOK_URL is required in production",
+      });
+    }
     if (
       environment.CHALLENGE_START_DATE &&
       environment.CHALLENGE_END_DATE &&

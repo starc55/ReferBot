@@ -1,6 +1,6 @@
 # Telegram Referral Challenge Platform
 
-Production-oriented Telegram referral challenge platform built as a TypeScript workspace. Phase 1 establishes strict configuration, the PostgreSQL/Prisma data model, security constraints, and the initial migration. Phase 2 adds idempotent `/start` onboarding, opaque referral attribution, and expiring one-use captcha callbacks. Phase 3 verifies Telegram channel membership and confirms eligible referrals transactionally.
+Production-oriented Telegram referral challenge platform built as a TypeScript workspace. It includes idempotent onboarding, opaque referral attribution, one-use captcha, Telegram membership verification, progress and ranking screens, automatic referrer notifications, and gated reward-channel access.
 
 ## Phase 1 prerequisites
 
@@ -56,7 +56,7 @@ Run the development bot with:
 npm run dev -w @telegram-referral/bot
 ```
 
-The current development runtime uses long polling and requests `message` and `callback_query` updates. Production webhook delivery and passive `chat_member` unsubscribe tracking are introduced in later phases.
+The development runtime uses long polling. Production uses the authenticated HTTPS handler at `/api/telegram`.
 
 ### Onboarding behavior
 
@@ -68,3 +68,14 @@ The current development runtime uses long polling and requests `message` and `ca
 6. Successful captcha use is transactional, tied to the Telegram user, one-use, expiring, and attempt-limited.
 
 `/start` and captcha alone do not confirm referral credit. The user must press “Obunani tekshirish”; the bot calls Telegram `getChatMember` and transactionally changes an eligible referral from `PENDING` to `CONFIRMED`. After verification the bot displays the user's opaque personal referral link; `/ref` displays it again for verified subscribers.
+
+## Production deployment on Vercel
+
+1. Create a Vercel project from this repository and keep the root directory at the repository root.
+2. Configure the production environment variables from `.env`. Set `NODE_ENV=production`, `DATABASE_SSL_CA_PATH=certs/supabase-prod-ca-2021.crt`, and `TELEGRAM_WEBHOOK_URL=https://<production-domain>/api/telegram`.
+3. Use the Supabase Supavisor pooler for `DATABASE_URL`; keep `DIRECT_URL` on session/direct mode for migrations.
+4. Deploy and verify `GET /api/health` returns HTTP 200.
+5. Run `npm run telegram:configure` with the production values loaded. This sets bot commands and an authenticated webhook without printing the bot token or webhook secret.
+6. Check `getWebhookInfo` reports the production URL, zero pending updates, and no last error.
+
+The webhook rejects every request without Telegram’s `X-Telegram-Bot-Api-Secret-Token` header. `.vercelignore` excludes every `.env` file from deployment uploads.

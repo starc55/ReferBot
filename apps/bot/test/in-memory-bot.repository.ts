@@ -5,8 +5,10 @@ import type {
 } from "@telegram-referral/database";
 
 import type {
+  ActiveChallengeRecord,
   BotUserRecord,
-  MembershipVerificationOutcome,
+  ChallengeDashboardRecord,
+  MembershipVerificationResult,
   TelegramUserProfile,
 } from "../src/domain/types.js";
 import {
@@ -41,11 +43,8 @@ export class InMemoryBotRepository
   public readonly fraudFlags: FraudFlagInput[] = [];
   public readonly audits: AuditEventInput[] = [];
   public readonly updates = new Map<bigint, StoredUpdate>();
-  public activeChallenge: {
-    id: string;
-    startDate: Date;
-    endDate: Date;
-  } | null = null;
+  public readonly rewardInvites = new Map<string, string>();
+  public activeChallenge: ActiveChallengeRecord | null = null;
 
   public findUserByTelegramId(
     telegramId: bigint,
@@ -134,6 +133,109 @@ export class InMemoryBotRepository
     const update = this.updates.get(updateId);
     if (update) update.status = "FAILED";
     return Promise.resolve();
+  }
+
+  public async getChallengeDashboard(
+    telegramId: bigint,
+    now: Date,
+    leaderboardLimit = 5,
+  ): Promise<ChallengeDashboardRecord | null> {
+    const user = await this.findUserByTelegramId(telegramId);
+    if (!user) return null;
+    const challenge = await this.findActiveChallenge(now);
+    if (!challenge) {
+      return {
+        user,
+        challenge: null,
+        invitedCount: 0,
+        pendingCount: 0,
+        confirmedCount: 0,
+        remainingCount: 0,
+        rank: null,
+        leaderboard: [],
+        rewardInviteLink: null,
+      };
+    }
+    const relevant = [...this.referrals.values()].filter(
+      (referral) =>
+        referral.referrerId === user.id &&
+        referral.challengeId === challenge.id,
+    );
+    const pendingCount = relevant.filter(
+      (referral) => referral.status === "PENDING",
+    ).length;
+    const confirmedCount = relevant.filter(
+      (referral) => referral.status === "CONFIRMED",
+    ).length;
+    const counts = new Map<string, number>();
+    for (const referral of this.referrals.values()) {
+      if (
+        referral.challengeId === challenge.id &&
+        referral.status === "CONFIRMED"
+      ) {
+        counts.set(
+          referral.referrerId,
+          (counts.get(referral.referrerId) ?? 0) + 1,
+        );
+      }
+    }
+    const ranked = [...counts.entries()].sort(
+      ([leftId, leftCount], [rightId, rightCount]) =>
+        rightCount - leftCount || leftId.localeCompare(rightId),
+    );
+    return {
+      user,
+      challenge,
+      invitedCount: pendingCount + confirmedCount,
+      pendingCount,
+      confirmedCount,
+      remainingCount: Math.max(challenge.referralTarget - confirmedCount, 0),
+      rank:
+        ranked.findIndex(([candidateId]) => candidateId === user.id) + 1 ||
+        null,
+      leaderboard: ranked.slice(0, leaderboardLimit).flatMap(([id, count]) => {
+        const rankedUser = this.users.get(id);
+        return rankedUser
+          ? [
+              {
+                telegramId: rankedUser.telegramId,
+                username: rankedUser.username,
+                firstName: rankedUser.firstName,
+                confirmedCount: count,
+              },
+            ]
+          : [];
+      }),
+      rewardInviteLink:
+        this.rewardInvites.get(`${challenge.id}:${user.id}`) ?? null,
+    };
+  }
+
+  public deliverRewardInvite(input: {
+    challengeId: string;
+    userId: string;
+    inviteLink: string;
+    deliveredAt: Date;
+  }): Promise<string> {
+    void input.deliveredAt;
+    const key = `${input.challengeId}:${input.userId}`;
+    const existing = this.rewardInvites.get(key);
+    if (existing) return Promise.resolve(existing);
+    const confirmedCount = [...this.referrals.values()].filter(
+      (referral) =>
+        referral.referrerId === input.userId &&
+        referral.challengeId === input.challengeId &&
+        referral.status === "CONFIRMED",
+    ).length;
+    if (
+      !this.activeChallenge ||
+      this.activeChallenge.id !== input.challengeId ||
+      confirmedCount < this.activeChallenge.referralTarget
+    ) {
+      return Promise.reject(new Error("Reward is not eligible for delivery"));
+    }
+    this.rewardInvites.set(key, input.inviteLink);
+    return Promise.resolve(input.inviteLink);
   }
 
   public findActiveChallenge(now: Date) {
@@ -277,36 +379,36 @@ export class InMemoryBotRepository
     isSubscribed: boolean;
     telegramUpdateId: bigint;
     checkedAt: Date;
-  }): Promise<MembershipVerificationOutcome> {
+  }): Promise<MembershipVerificationResult> {
     void input.channelId;
     void input.telegramStatus;
     void input.telegramUpdateId;
     const user = this.users.get(input.userId);
     if (!user) {
-      return Promise.resolve("USER_NOT_FOUND");
+      return Promise.resolve({ outcome: "USER_NOT_FOUND", confirmation: null });
     }
 
     user.isSubscribed = input.isSubscribed;
     user.subscriptionCheckedAt = input.checkedAt;
     if (!input.isSubscribed) {
-      return Promise.resolve("NOT_SUBSCRIBED");
+      return Promise.resolve({ outcome: "NOT_SUBSCRIBED", confirmation: null });
     }
     if (user.isBlocked) {
-      return Promise.resolve("BLOCKED");
+      return Promise.resolve({ outcome: "BLOCKED", confirmation: null });
     }
     if (user.isSuspicious) {
-      return Promise.resolve("SUSPICIOUS");
+      return Promise.resolve({ outcome: "SUSPICIOUS", confirmation: null });
     }
     if (!user.captchaVerified) {
-      return Promise.resolve("CAPTCHA_REQUIRED");
+      return Promise.resolve({ outcome: "CAPTCHA_REQUIRED", confirmation: null });
     }
 
     const referral = this.referrals.get(user.id);
     if (!referral) {
-      return Promise.resolve("VERIFIED_NO_REFERRAL");
+      return Promise.resolve({ outcome: "VERIFIED_NO_REFERRAL", confirmation: null });
     }
     if (referral.status === "CONFIRMED") {
-      return Promise.resolve("ALREADY_CONFIRMED");
+      return Promise.resolve({ outcome: "ALREADY_CONFIRMED", confirmation: null });
     }
     if (
       !this.activeChallenge ||
@@ -314,12 +416,36 @@ export class InMemoryBotRepository
       this.activeChallenge.startDate > input.checkedAt ||
       this.activeChallenge.endDate <= input.checkedAt
     ) {
-      return Promise.resolve("NO_ACTIVE_CHALLENGE");
+      return Promise.resolve({ outcome: "NO_ACTIVE_CHALLENGE", confirmation: null });
     }
 
     referral.status = "CONFIRMED";
     referral.confirmedAt = input.checkedAt;
-    return Promise.resolve("CONFIRMED");
+    const confirmedCount = [...this.referrals.values()].filter(
+      (candidate) =>
+        candidate.referrerId === referral.referrerId &&
+        candidate.challengeId === referral.challengeId &&
+        candidate.status === "CONFIRMED",
+    ).length;
+    const referrer = this.users.get(referral.referrerId);
+    if (!referrer || !this.activeChallenge) {
+      return Promise.resolve({ outcome: "CONFIRMED", confirmation: null });
+    }
+    return Promise.resolve({
+      outcome: "CONFIRMED",
+      confirmation: {
+        referrerTelegramId: referrer.telegramId,
+        challengeId: referral.challengeId,
+        confirmedCount,
+        referralTarget: this.activeChallenge.referralTarget,
+        remainingCount: Math.max(
+          this.activeChallenge.referralTarget - confirmedCount,
+          0,
+        ),
+        rewardUnlocked:
+          confirmedCount >= this.activeChallenge.referralTarget,
+      },
+    });
   }
 
   public countFraudType(type: FraudType): number {

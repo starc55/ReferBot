@@ -30,6 +30,7 @@ export class OnboardingService {
     payload: string | null,
     now: Date,
     telegramUpdateId: bigint,
+    createCaptcha = true,
   ): Promise<StartOnboardingResult> {
     const user = await this.upsertUser(profile, now);
 
@@ -57,7 +58,7 @@ export class OnboardingService {
       telegramUpdateId,
     );
 
-    const captchaNonce = user.captchaVerified
+    const captchaNonce = user.captchaVerified || !createCaptcha
       ? null
       : await this.captchaService.createChallenge(user.id, now);
 

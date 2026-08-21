@@ -18,8 +18,43 @@ export interface BotUserRecord extends TelegramUserProfile {
 
 export interface ActiveChallengeRecord {
   id: string;
+  name: string;
+  description: string;
+  referralTarget: number;
   startDate: Date;
   endDate: Date;
+  rewardDescription: string;
+  rulesText: string;
+  rewardChannelId: bigint | null;
+  rewardChannelUsername: string | null;
+}
+
+export interface LeaderboardEntry {
+  telegramId: bigint;
+  username: string | null;
+  firstName: string;
+  confirmedCount: number;
+}
+
+export interface ChallengeDashboardRecord {
+  user: BotUserRecord;
+  challenge: ActiveChallengeRecord | null;
+  invitedCount: number;
+  pendingCount: number;
+  confirmedCount: number;
+  remainingCount: number;
+  rank: number | null;
+  leaderboard: LeaderboardEntry[];
+  rewardInviteLink: string | null;
+}
+
+export interface ReferralConfirmationRecord {
+  referrerTelegramId: bigint;
+  challengeId: string;
+  confirmedCount: number;
+  referralTarget: number;
+  remainingCount: number;
+  rewardUnlocked: boolean;
 }
 
 export interface ReferralRecord {
@@ -58,6 +93,11 @@ export type MembershipVerificationOutcome =
   | "SUSPICIOUS"
   | "NO_ACTIVE_CHALLENGE"
   | "REFERRAL_NOT_ELIGIBLE";
+
+export interface MembershipVerificationResult {
+  outcome: MembershipVerificationOutcome;
+  confirmation: ReferralConfirmationRecord | null;
+}
 
 export interface StartOnboardingResult {
   user: BotUserRecord;

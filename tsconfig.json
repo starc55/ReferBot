@@ -6,6 +6,7 @@
   },
   "include": [
     "apps/**/*.ts",
+    "api/**/*.ts",
     "packages/**/*.ts",
     "prisma.config.ts",
     "eslint.config.js"
