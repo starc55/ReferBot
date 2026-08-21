@@ -51,7 +51,7 @@ export function createBot(token: string, dependencies: BotDependencies) {
     context: Context,
     text: string,
     keyboard?: InlineKeyboard,
-    edit = false,
+    edit = false
   ): Promise<void> {
     if (!edit) {
       if (keyboard) await context.reply(text, keyboard);
@@ -72,11 +72,11 @@ export function createBot(token: string, dependencies: BotDependencies) {
   async function dashboardFor(
     context: Context,
     telegramId: bigint,
-    edit: boolean,
+    edit: boolean
   ): Promise<ChallengeDashboardRecord | null> {
     const dashboard = await dependencies.repository.getChallengeDashboard(
       telegramId,
-      now(),
+      now()
     );
     if (!dashboard) {
       await sendText(context, uz.restartRequired, undefined, edit);
@@ -89,14 +89,9 @@ export function createBot(token: string, dependencies: BotDependencies) {
     if (!dashboard.user.captchaVerified) {
       const nonce = await dependencies.captchaService.createChallenge(
         dashboard.user.id,
-        now(),
+        now()
       );
-      await sendText(
-        context,
-        uz.captchaRequired,
-        captchaKeyboard(nonce),
-        edit,
-      );
+      await sendText(context, uz.captchaRequired, captchaKeyboard(nonce), edit);
       return null;
     }
     if (!dashboard.user.isSubscribed) {
@@ -104,7 +99,7 @@ export function createBot(token: string, dependencies: BotDependencies) {
         context,
         uz.subscriptionPrompt,
         subscriptionKeyboard(dependencies.mainChannelUsername),
-        edit,
+        edit
       );
       return null;
     }
@@ -117,22 +112,27 @@ export function createBot(token: string, dependencies: BotDependencies) {
 
   async function showDashboard(context: Context, edit: boolean): Promise<void> {
     if (!context.from) return;
-    const dashboard = await dashboardFor(context, BigInt(context.from.id), edit);
+    const dashboard = await dashboardFor(
+      context,
+      BigInt(context.from.id),
+      edit
+    );
     if (!dashboard) return;
     await sendText(
       context,
       uz.dashboard(dashboard, dependencies.botUsername, now()),
-      dashboardKeyboard(
-        dependencies.botUsername,
-        dashboard.user.referralCode,
-      ),
-      edit,
+      dashboardKeyboard(dependencies.botUsername, dashboard.user.referralCode),
+      edit
     );
   }
 
   async function showStats(context: Context, edit: boolean): Promise<void> {
     if (!context.from) return;
-    const dashboard = await dashboardFor(context, BigInt(context.from.id), edit);
+    const dashboard = await dashboardFor(
+      context,
+      BigInt(context.from.id),
+      edit
+    );
     if (!dashboard || !dashboard.challenge) return;
     const hasAccess =
       dashboard.confirmedCount >= dashboard.challenge.referralTarget;
@@ -142,59 +142,68 @@ export function createBot(token: string, dependencies: BotDependencies) {
       statsKeyboard(
         dependencies.botUsername,
         dashboard.user.referralCode,
-        hasAccess,
+        hasAccess
       ),
-      edit,
+      edit
     );
   }
 
   async function showTop(context: Context, edit: boolean): Promise<void> {
     if (!context.from) return;
-    const dashboard = await dashboardFor(context, BigInt(context.from.id), edit);
+    const dashboard = await dashboardFor(
+      context,
+      BigInt(context.from.id),
+      edit
+    );
     if (!dashboard) return;
     await sendText(
       context,
       uz.top(dashboard),
       topKeyboard(dependencies.botUsername, dashboard.user.referralCode),
-      edit,
+      edit
     );
   }
 
   async function showReferral(context: Context, edit: boolean): Promise<void> {
     if (!context.from) return;
-    const dashboard = await dashboardFor(context, BigInt(context.from.id), edit);
+    const dashboard = await dashboardFor(
+      context,
+      BigInt(context.from.id),
+      edit
+    );
     if (!dashboard) return;
     await sendText(
       context,
       uz.referralScreen(dashboard, dependencies.botUsername),
       referralKeyboard(dependencies.botUsername, dashboard.user.referralCode),
-      edit,
+      edit
     );
   }
 
   async function showAbout(context: Context, edit: boolean): Promise<void> {
     if (!context.from) return;
-    const dashboard = await dashboardFor(context, BigInt(context.from.id), edit);
+    const dashboard = await dashboardFor(
+      context,
+      BigInt(context.from.id),
+      edit
+    );
     if (!dashboard) return;
     await sendText(
       context,
       uz.about(dashboard, now()),
-      dashboardKeyboard(
-        dependencies.botUsername,
-        dashboard.user.referralCode,
-      ),
-      edit,
+      dashboardKeyboard(dependencies.botUsername, dashboard.user.referralCode),
+      edit
     );
   }
 
   async function notifyReferrer(
     confirmation: NonNullable<
       Awaited<ReturnType<MembershipService["verify"]>>["confirmation"]
-    >,
+    >
   ): Promise<void> {
     const dashboard = await dependencies.repository.getChallengeDashboard(
       confirmation.referrerTelegramId,
-      now(),
+      now()
     );
     if (!dashboard) return;
     const numericChatId = Number(confirmation.referrerTelegramId);
@@ -205,19 +214,19 @@ export function createBot(token: string, dependencies: BotDependencies) {
         await bot.telegram.sendMessage(
           numericChatId,
           uz.challengeUnlocked(confirmation.referralTarget),
-          unlockedKeyboard(),
+          unlockedKeyboard()
         );
       } else {
         await bot.telegram.sendMessage(
           numericChatId,
           uz.newReferral(
             confirmation.confirmedCount,
-            confirmation.referralTarget,
+            confirmation.referralTarget
           ),
           inviteAgainKeyboard(
             dependencies.botUsername,
-            dashboard.user.referralCode,
-          ),
+            dashboard.user.referralCode
+          )
         );
       }
     } catch (error) {
@@ -226,14 +235,21 @@ export function createBot(token: string, dependencies: BotDependencies) {
           error,
           referrerTelegramId: confirmation.referrerTelegramId.toString(),
         },
-        "Failed to notify referrer",
+        "Failed to notify referrer"
       );
     }
   }
 
-  async function enterChallenge(context: Context, edit: boolean): Promise<void> {
+  async function enterChallenge(
+    context: Context,
+    edit: boolean
+  ): Promise<void> {
     if (!context.from) return;
-    const dashboard = await dashboardFor(context, BigInt(context.from.id), edit);
+    const dashboard = await dashboardFor(
+      context,
+      BigInt(context.from.id),
+      edit
+    );
     if (!dashboard || !dashboard.challenge) return;
     if (dashboard.confirmedCount < dashboard.challenge.referralTarget) {
       await sendText(context, uz.rewardNotEligible, undefined, edit);
@@ -245,7 +261,7 @@ export function createBot(token: string, dependencies: BotDependencies) {
     ) {
       dependencies.logger.error(
         { challengeId: dashboard.challenge.id },
-        "Reward channel is not configured",
+        "Reward channel is not configured"
       );
       await sendText(context, uz.rewardNotReady, undefined, edit);
       return;
@@ -254,21 +270,34 @@ export function createBot(token: string, dependencies: BotDependencies) {
     let inviteLink = dashboard.rewardInviteLink;
     if (!inviteLink) {
       const configuredInvite = dashboard.challenge.rewardChannelUsername;
-      const telegramInvite = dashboard.challenge.rewardChannelId
-        ? await bot.telegram.createChatInviteLink(
+      let newInviteLink = configuredInvite
+        ? configuredInvite.startsWith("https://")
+          ? configuredInvite
+          : `https://t.me/${configuredInvite.replace(/^@/, "")}`
+        : null;
+      if (dashboard.challenge.rewardChannelId) {
+        try {
+          const telegramInvite = await bot.telegram.createChatInviteLink(
             dashboard.challenge.rewardChannelId.toString(),
             {
               expire_date:
                 Math.floor(now().getTime() / 1_000) + 7 * 24 * 60 * 60,
               member_limit: 1,
-            },
-          )
-        : null;
-      const newInviteLink =
-        telegramInvite?.invite_link ??
-        (configuredInvite?.startsWith("https://")
-          ? configuredInvite
-          : `https://t.me/${configuredInvite?.replace(/^@/, "")}`);
+            }
+          );
+          newInviteLink = telegramInvite.invite_link;
+        } catch (error) {
+          if (!newInviteLink) throw error;
+          dependencies.logger.debug(
+            { error, challengeId: dashboard.challenge.id },
+            "Could not create a one-use reward invite; using configured fallback"
+          );
+        }
+      }
+      if (!newInviteLink) {
+        await sendText(context, uz.rewardNotReady, undefined, edit);
+        return;
+      }
       inviteLink = await dependencies.repository.deliverRewardInvite({
         challengeId: dashboard.challenge.id,
         userId: dashboard.user.id,
@@ -281,7 +310,7 @@ export function createBot(token: string, dependencies: BotDependencies) {
       context,
       uz.challengeUnlocked(dashboard.challenge.referralTarget),
       inviteLinkKeyboard(inviteLink),
-      edit,
+      edit
     );
   }
 
@@ -304,18 +333,18 @@ export function createBot(token: string, dependencies: BotDependencies) {
             extractStartPayload(context.message.text),
             now(),
             updateId,
-            false,
+            false
           );
           await context.reply(
             result.user.isBlocked ? uz.blocked : uz.welcome,
-            result.user.isBlocked ? undefined : startKeyboard(),
+            result.user.isBlocked ? undefined : startKeyboard()
           );
-        },
+        }
       );
     } catch (error) {
       dependencies.logger.error(
         { error, updateId: updateId.toString() },
-        "Failed to process /start",
+        "Failed to process /start"
       );
       await context.reply(uz.genericError);
     }
@@ -328,12 +357,12 @@ export function createBot(token: string, dependencies: BotDependencies) {
       await dependencies.updateProcessor.process(
         updateId,
         "callback_query:begin_challenge",
-        () => showDashboard(context, true),
+        () => showDashboard(context, true)
       );
     } catch (error) {
       dependencies.logger.error(
         { error, updateId: updateId.toString() },
-        "Failed to begin challenge",
+        "Failed to begin challenge"
       );
       await context.reply(uz.genericError);
     }
@@ -348,7 +377,7 @@ export function createBot(token: string, dependencies: BotDependencies) {
         "callback_query:captcha",
         async () => {
           const user = await dependencies.repository.findUserByTelegramId(
-            BigInt(context.from.id),
+            BigInt(context.from.id)
           );
           const nonce = context.match[1];
           if (!user || !nonce) {
@@ -359,14 +388,14 @@ export function createBot(token: string, dependencies: BotDependencies) {
             user.id,
             nonce,
             now(),
-            updateId,
+            updateId
           );
           if (outcome === "VERIFIED") {
             await sendText(
               context,
               `${uz.captchaVerified}\n\n${uz.subscriptionPrompt}`,
               subscriptionKeyboard(dependencies.mainChannelUsername),
-              true,
+              true
             );
             return;
           }
@@ -379,12 +408,12 @@ export function createBot(token: string, dependencies: BotDependencies) {
             return;
           }
           await sendText(context, uz.captchaExpired, undefined, true);
-        },
+        }
       );
     } catch (error) {
       dependencies.logger.error(
         { error, updateId: updateId.toString() },
-        "Failed to process captcha callback",
+        "Failed to process captcha callback"
       );
       await context.reply(uz.genericError);
     }
@@ -401,7 +430,7 @@ export function createBot(token: string, dependencies: BotDependencies) {
           const verification = await dependencies.membershipService.verify(
             BigInt(context.from.id),
             now(),
-            updateId,
+            updateId
           );
           const outcome = verification.outcome;
           if (outcome === "NOT_SUBSCRIBED") {
@@ -409,7 +438,7 @@ export function createBot(token: string, dependencies: BotDependencies) {
               context,
               uz.subscriptionRequired,
               subscriptionKeyboard(dependencies.mainChannelUsername),
-              true,
+              true
             );
             return;
           }
@@ -446,12 +475,12 @@ export function createBot(token: string, dependencies: BotDependencies) {
           if (verification.confirmation) {
             await notifyReferrer(verification.confirmation);
           }
-        },
+        }
       );
     } catch (error) {
       dependencies.logger.error(
         { error, updateId: updateId.toString() },
-        "Failed to verify channel membership",
+        "Failed to verify channel membership"
       );
       await context.reply(uz.genericError);
     }
@@ -459,7 +488,7 @@ export function createBot(token: string, dependencies: BotDependencies) {
 
   function registerCommand(
     command: string,
-    handler: (context: Context, edit: boolean) => Promise<void>,
+    handler: (context: Context, edit: boolean) => Promise<void>
   ): void {
     bot.command(command, async (context) => {
       const updateId = BigInt(context.update.update_id);
@@ -467,12 +496,12 @@ export function createBot(token: string, dependencies: BotDependencies) {
         await dependencies.updateProcessor.process(
           updateId,
           `message:${command}`,
-          () => handler(context, false),
+          () => handler(context, false)
         );
       } catch (error) {
         dependencies.logger.error(
           { error, updateId: updateId.toString(), command },
-          "Failed to process command",
+          "Failed to process command"
         );
         await context.reply(uz.genericError);
       }
@@ -481,7 +510,7 @@ export function createBot(token: string, dependencies: BotDependencies) {
 
   function registerAction(
     action: string,
-    handler: (context: Context, edit: boolean) => Promise<void>,
+    handler: (context: Context, edit: boolean) => Promise<void>
   ): void {
     bot.action(action, async (context) => {
       const updateId = BigInt(context.update.update_id);
@@ -490,12 +519,12 @@ export function createBot(token: string, dependencies: BotDependencies) {
         await dependencies.updateProcessor.process(
           updateId,
           `callback_query:${action}`,
-          () => handler(context, true),
+          () => handler(context, true)
         );
       } catch (error) {
         dependencies.logger.error(
           { error, updateId: updateId.toString(), action },
-          "Failed to process callback",
+          "Failed to process callback"
         );
         await context.reply(uz.genericError);
       }
@@ -515,7 +544,7 @@ export function createBot(token: string, dependencies: BotDependencies) {
   bot.catch((error, context) => {
     dependencies.logger.error(
       { error, updateId: context.update.update_id },
-      "Unhandled Telegram bot error",
+      "Unhandled Telegram bot error"
     );
   });
 
