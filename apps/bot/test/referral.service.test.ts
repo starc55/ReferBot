@@ -19,8 +19,15 @@ describe("ReferralService", () => {
     repository = new InMemoryBotRepository();
     repository.activeChallenge = {
       id: "challenge-1",
+      name: "Challenge",
+      description: "Description",
+      referralTarget: 5,
       startDate: new Date("2026-09-01T00:00:00.000Z"),
       endDate: new Date("2026-09-15T23:59:59.000Z"),
+      rewardDescription: "Reward",
+      rulesText: "Rules",
+      rewardChannelId: null,
+      rewardChannelUsername: null,
     };
     referrer = await repository.upsertTelegramUser(
       profile(100n, "Referrer"),

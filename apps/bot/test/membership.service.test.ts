@@ -14,9 +14,9 @@ describe("MembershipService", () => {
       const { repository, user } = await setup();
       const service = createService(repository, { status });
 
-      await expect(service.verify(user.telegramId, now, 1n)).resolves.toBe(
-        "VERIFIED_NO_REFERRAL",
-      );
+      await expect(service.verify(user.telegramId, now, 1n)).resolves.toMatchObject({
+        outcome: "VERIFIED_NO_REFERRAL",
+      });
       expect(repository.users.get(user.id)?.isSubscribed).toBe(true);
     },
   );
@@ -27,9 +27,9 @@ describe("MembershipService", () => {
       const { repository, user } = await setup();
       const service = createService(repository, { status });
 
-      await expect(service.verify(user.telegramId, now, 2n)).resolves.toBe(
-        "NOT_SUBSCRIBED",
-      );
+      await expect(service.verify(user.telegramId, now, 2n)).resolves.toMatchObject({
+        outcome: "NOT_SUBSCRIBED",
+      });
       expect(repository.users.get(user.id)?.isSubscribed).toBe(false);
     },
   );
@@ -43,7 +43,7 @@ describe("MembershipService", () => {
 
     await expect(
       memberService.verify(user.telegramId, now, 3n),
-    ).resolves.toBe("VERIFIED_NO_REFERRAL");
+    ).resolves.toMatchObject({ outcome: "VERIFIED_NO_REFERRAL" });
   });
 
   it("confirms one pending referral after captcha and membership checks", async () => {
@@ -61,8 +61,15 @@ describe("MembershipService", () => {
     );
     repository.activeChallenge = {
       id: "challenge-1",
+      name: "Challenge",
+      description: "Description",
+      referralTarget: 5,
       startDate: new Date("2026-09-01T00:00:00.000Z"),
       endDate: new Date("2026-09-15T23:59:59.000Z"),
+      rewardDescription: "Reward",
+      rulesText: "Rules",
+      rewardChannelId: null,
+      rewardChannelUsername: null,
     };
     repository.users.get(user.id)!.captchaVerified = true;
     await repository.createPendingReferralIfAbsent({
@@ -74,12 +81,13 @@ describe("MembershipService", () => {
     });
     const service = createService(repository, { status: "member" });
 
-    await expect(service.verify(user.telegramId, now, 4n)).resolves.toBe(
-      "CONFIRMED",
-    );
-    await expect(service.verify(user.telegramId, now, 5n)).resolves.toBe(
-      "ALREADY_CONFIRMED",
-    );
+    await expect(service.verify(user.telegramId, now, 4n)).resolves.toMatchObject({
+      outcome: "CONFIRMED",
+      confirmation: { confirmedCount: 1, remainingCount: 4 },
+    });
+    await expect(service.verify(user.telegramId, now, 5n)).resolves.toMatchObject({
+      outcome: "ALREADY_CONFIRMED",
+    });
     expect(repository.referrals.get(user.id)?.status).toBe("CONFIRMED");
   });
 });

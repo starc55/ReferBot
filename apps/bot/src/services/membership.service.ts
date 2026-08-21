@@ -1,4 +1,4 @@
-import type { MembershipVerificationOutcome } from "../domain/types.js";
+import type { MembershipVerificationResult } from "../domain/types.js";
 import type { BotRepository } from "../repositories/bot-repository.js";
 
 export interface TelegramMembership {
@@ -36,11 +36,11 @@ export class MembershipService {
     telegramUserId: bigint,
     now: Date,
     telegramUpdateId: bigint,
-  ): Promise<MembershipVerificationOutcome> {
+  ): Promise<MembershipVerificationResult> {
     const user =
       await this.repository.findUserByTelegramId(telegramUserId);
     if (!user) {
-      return "USER_NOT_FOUND";
+      return { outcome: "USER_NOT_FOUND", confirmation: null };
     }
 
     const member = await this.gateway.getChatMember(

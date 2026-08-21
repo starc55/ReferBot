@@ -9,7 +9,8 @@ import type { JsonObject } from "../domain/json.js";
 import type {
   ActiveChallengeRecord,
   BotUserRecord,
-  MembershipVerificationOutcome,
+  ChallengeDashboardRecord,
+  MembershipVerificationResult,
   ReferralRecord,
   TelegramUserProfile,
 } from "../domain/types.js";
@@ -106,6 +107,17 @@ export interface BotRepository {
     processedAt: Date,
     errorMessage: string,
   ): Promise<void>;
+  getChallengeDashboard(
+    telegramId: bigint,
+    now: Date,
+    leaderboardLimit?: number,
+  ): Promise<ChallengeDashboardRecord | null>;
+  deliverRewardInvite(input: {
+    challengeId: string;
+    userId: string;
+    inviteLink: string;
+    deliveredAt: Date;
+  }): Promise<string>;
   applyMembershipCheck(input: {
     userId: string;
     channelId: bigint;
@@ -113,5 +125,5 @@ export interface BotRepository {
     isSubscribed: boolean;
     telegramUpdateId: bigint;
     checkedAt: Date;
-  }): Promise<MembershipVerificationOutcome>;
+  }): Promise<MembershipVerificationResult>;
 }
