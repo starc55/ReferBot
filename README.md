@@ -6,14 +6,14 @@ Production-oriented Telegram referral challenge platform built as a TypeScript w
 
 - Node.js 22.13 or newer
 - npm 11 or newer
-- PostgreSQL 15+ or a Supabase project
+- PostgreSQL 15+ (Neon Free is the production default)
 
 ## Setup
 
 1. Copy `.env.example` to `.env` and replace every required blank value.
-2. In Supabase, create a dedicated Prisma database role as described in the official Prisma integration guide.
-3. Use a direct PostgreSQL connection for `DIRECT_URL`. If the deployment network is IPv4-only, use Supavisor session mode on port 5432. Do not use transaction mode for Prisma migrations.
-4. Use a direct or session-mode connection for the persistent API's `DATABASE_URL`.
+2. Create a Neon project and use its pooled connection string for `DATABASE_URL`.
+3. Use the matching direct Neon connection string for `DIRECT_URL`; Prisma migrations must not use the pooler.
+4. Keep `sslmode=verify-full` in both connection strings.
 5. Install and validate:
 
    ```bash
@@ -31,9 +31,9 @@ Production-oriented Telegram referral challenge platform built as a TypeScript w
 
 ## Database security
 
-Application tables are server-only. The initial migration enables row-level security without creating `anon` or `authenticated` policies. The admin frontend uses Supabase Auth for identity, then calls the backend; it does not read application tables using the Supabase Data API.
+Application tables are server-only. Browser code never connects directly to PostgreSQL; all application data goes through authenticated backend endpoints backed by Prisma.
 
-Never place `DATABASE_URL`, `DIRECT_URL`, `TELEGRAM_BOT_TOKEN`, or `SUPABASE_SERVICE_ROLE_KEY` in Vite-prefixed variables or browser code.
+Never place `DATABASE_URL`, `DIRECT_URL`, or `TELEGRAM_BOT_TOKEN` in Vite-prefixed variables or browser code.
 
 See [docs/architecture.md](docs/architecture.md) for the system boundaries and invariants.
 
@@ -46,7 +46,6 @@ Before starting the bot, configure at least the database values plus:
 - `TELEGRAM_WEBHOOK_SECRET` with at least 32 characters
 - `MAIN_CHANNEL_ID`
 - `MAIN_CHANNEL_USERNAME`
-- Supabase URL/keys required by the central environment validator
 
 Add the bot to the required channel as an administrator. Telegram only guarantees reliable `getChatMember` checks for other users when the bot is a channel administrator.
 
@@ -72,8 +71,8 @@ The development runtime uses long polling. Production uses the authenticated HTT
 ## Production deployment on Vercel
 
 1. Create a Vercel project from this repository and keep the root directory at the repository root.
-2. Configure the production environment variables from `.env`. Set `NODE_ENV=production`, `DATABASE_SSL_CA_PATH=certs/supabase-prod-ca-2021.crt`, and `TELEGRAM_WEBHOOK_URL=https://<production-domain>/api/telegram`.
-3. Use the Supabase Supavisor pooler for `DATABASE_URL`; keep `DIRECT_URL` on session/direct mode for migrations.
+2. Configure the production environment variables from `.env`. Set `NODE_ENV=production` and `TELEGRAM_WEBHOOK_URL=https://<production-domain>/api/telegram`.
+3. Use Neon's pooled URL for `DATABASE_URL` and its direct URL for `DIRECT_URL`.
 4. Deploy and verify `GET /api/health` returns HTTP 200.
 5. Run `npm run telegram:configure` with the production values loaded. This sets bot commands and an authenticated webhook without printing the bot token or webhook secret.
 6. Check `getWebhookInfo` reports the production URL, zero pending updates, and no last error.

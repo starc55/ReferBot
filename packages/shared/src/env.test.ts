@@ -12,9 +12,6 @@ const validEnvironment = {
   ADMIN_FRONTEND_URL: "http://localhost:5173",
   API_URL: "http://localhost:3000",
   CORS_ORIGINS: "http://localhost:5173",
-  SUPABASE_URL: "https://project.supabase.co",
-  SUPABASE_ANON_KEY: "a".repeat(24),
-  SUPABASE_SERVICE_ROLE_KEY: "b".repeat(24),
   ADMIN_EMAILS: "admin@example.com",
 } satisfies NodeJS.ProcessEnv;
 

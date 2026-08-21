@@ -12,9 +12,9 @@ The API and bot are separate packages but may be deployed in one persistent Node
 
 ## Trust boundaries
 
-Telegram IDs identify bot users. Admins authenticate with Supabase Auth, but backend authorization also checks the approved email list or active `AdminProfile`. The browser cannot connect to application tables. All application data goes through authenticated `/admin/*` endpoints backed by Prisma.
+Telegram IDs identify bot users. Backend authorization checks the approved email list or an active `AdminProfile`. The browser cannot connect to application tables. All application data goes through authenticated `/admin/*` endpoints backed by Prisma.
 
-The public-schema application tables have PostgreSQL row-level security enabled with no public policies. This is defense in depth against accidental Supabase Data API exposure; the dedicated Prisma database role is the server-side data path.
+The Neon database is reachable only through server-side Prisma connections. The pooled connection handles application traffic, while the direct connection is reserved for migrations.
 
 ## Data invariants
 

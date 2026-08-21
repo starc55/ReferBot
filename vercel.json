@@ -5,8 +5,7 @@
   "regions": ["bom1"],
   "functions": {
     "api/telegram.ts": {
-      "maxDuration": 60,
-      "includeFiles": "certs/supabase-prod-ca-2021.crt"
+      "maxDuration": 60
     },
     "api/health.ts": {
       "maxDuration": 10

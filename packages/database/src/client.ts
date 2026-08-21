@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "./generated/prisma/client.js";
@@ -22,23 +19,7 @@ export function getPrismaClient(): PrismaClient {
     throw new Error("DATABASE_URL is required to create the Prisma client");
   }
 
-  const certificatePath = process.env.DATABASE_SSL_CA_PATH;
-  const runtimeConnectionUrl = new URL(connectionString);
-  
-  runtimeConnectionUrl.searchParams.delete("sslmode");
-  runtimeConnectionUrl.searchParams.delete("sslrootcert");
-  
-  const adapter = new PrismaPg({
-    connectionString: runtimeConnectionUrl.toString(),
-    ssl: certificatePath
-      ? {
-          ca: readFileSync(resolve(process.cwd(), certificatePath), "utf8"),
-          rejectUnauthorized: true,
-        }
-      : {
-          rejectUnauthorized: false,
-        },
-  });
+  const adapter = new PrismaPg({ connectionString });
   const client = new PrismaClient({ adapter });
 
   if (process.env.NODE_ENV !== "production") {

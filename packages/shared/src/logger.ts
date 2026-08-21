@@ -7,7 +7,6 @@ const sensitivePaths = [
   "password",
   "token",
   "TELEGRAM_BOT_TOKEN",
-  "SUPABASE_SERVICE_ROLE_KEY",
   "DATABASE_URL",
   "DIRECT_URL",
 ] as const;

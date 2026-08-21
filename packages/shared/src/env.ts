@@ -71,9 +71,6 @@ export const serverEnvSchema = z
         .filter(Boolean),
     ),
 
-    SUPABASE_URL: z.url(),
-    SUPABASE_ANON_KEY: z.string().min(20),
-    SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
     ADMIN_EMAILS: commaSeparatedEmails,
     REDIS_URL: optionalUrl,
 
@@ -141,6 +138,4 @@ export function parseServerEnv(
 
 export const publicEnvKeys = [
   "VITE_API_URL",
-  "VITE_SUPABASE_URL",
-  "VITE_SUPABASE_ANON_KEY",
 ] as const;

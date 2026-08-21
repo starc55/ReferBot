@@ -428,17 +428,3 @@ ALTER TABLE "audit_logs"
       OR ("actor_type" = 'ADMIN' AND "actor_user_id" IS NULL AND "actor_admin_id" IS NOT NULL)
     );
 
--- Supabase exposes the public schema through its Data API. RLS with no public
--- policies keeps these server-owned tables inaccessible to anon/authenticated roles.
-ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "challenges" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "referrals" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "rewards" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "fraud_flags" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "subscription_events" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "captcha_sessions" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "telegram_updates" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "admin_profiles" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "audit_logs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "system_settings" ENABLE ROW LEVEL SECURITY;
-
