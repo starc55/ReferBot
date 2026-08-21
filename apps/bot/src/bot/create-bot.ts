@@ -239,7 +239,10 @@ export function createBot(token: string, dependencies: BotDependencies) {
       await sendText(context, uz.rewardNotEligible, undefined, edit);
       return;
     }
-    if (!dashboard.challenge.rewardChannelId) {
+    if (
+      !dashboard.challenge.rewardChannelId &&
+      !dashboard.challenge.rewardChannelUsername
+    ) {
       dependencies.logger.error(
         { challengeId: dashboard.challenge.id },
         "Reward channel is not configured",
@@ -250,17 +253,26 @@ export function createBot(token: string, dependencies: BotDependencies) {
 
     let inviteLink = dashboard.rewardInviteLink;
     if (!inviteLink) {
-      const telegramInvite = await bot.telegram.createChatInviteLink(
-        dashboard.challenge.rewardChannelId.toString(),
-        {
-          expire_date: Math.floor(now().getTime() / 1_000) + 7 * 24 * 60 * 60,
-          member_limit: 1,
-        },
-      );
+      const configuredInvite = dashboard.challenge.rewardChannelUsername;
+      const telegramInvite = dashboard.challenge.rewardChannelId
+        ? await bot.telegram.createChatInviteLink(
+            dashboard.challenge.rewardChannelId.toString(),
+            {
+              expire_date:
+                Math.floor(now().getTime() / 1_000) + 7 * 24 * 60 * 60,
+              member_limit: 1,
+            },
+          )
+        : null;
+      const newInviteLink =
+        telegramInvite?.invite_link ??
+        (configuredInvite?.startsWith("https://")
+          ? configuredInvite
+          : `https://t.me/${configuredInvite?.replace(/^@/, "")}`);
       inviteLink = await dependencies.repository.deliverRewardInvite({
         challengeId: dashboard.challenge.id,
         userId: dashboard.user.id,
-        inviteLink: telegramInvite.invite_link,
+        inviteLink: newInviteLink,
         deliveredAt: now(),
       });
     }
